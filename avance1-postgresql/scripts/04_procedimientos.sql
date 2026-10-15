@@ -1,17 +1,3 @@
--- =====================================================================
---  Base de Datos II · Avance 1 · Núcleo transaccional (PostgreSQL)
---  Empresa:     CuevanaCinema (Bogotá D.C.)
---  Script:      04_procedimientos.sql
---  Responsable: Juan Buitrago · Revisan: Sergio Hernandez y Nicole Cruz
---  Propósito:   Procedimientos almacenados del núcleo. Todos validan sus
---               parámetros y manejan errores con EXCEPTION y RAISE.
---  Requisito:   P1 cálculo o transacción · P2 reporte con agregación ·
---               P3 mantenimiento u operación.
---  Orden:       4 de 5. Después de 01, 02 y 03 (los triggers se disparan
---               dentro de los procedimientos).
-
--- =====================================================================
-
 SET client_encoding = 'UTF8';
 
 -- ---------------------------------------------------------------------
