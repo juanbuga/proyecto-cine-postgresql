@@ -1,0 +1,1 @@
+# Diagrama de arquitectura políglota 
