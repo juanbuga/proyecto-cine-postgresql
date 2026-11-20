@@ -5,7 +5,8 @@ CuevanaCinema es una cadena multisala de Bogotá D.C. con 3 sedes y 10 salas 2D,
 | Avance | Carpeta | Motor | Estado |
 |---|---|---|---|
 | Avance 1 — Núcleo transaccional | [`avance1-postgresql/`](avance1-postgresql/) | PostgreSQL | Entregado el 15 de octubre de 2026 |
-| Avance 2 — Capa documental y arquitectura políglota | [`avance2-mongodb/`](avance2-mongodb/) | MongoDB | En entrega |
+| Avance 2 — Capa documental y arquitectura políglota | [`avance2-mongodb/`](avance2-mongodb/) | MongoDB | Entregado |
+| Integración — API, Postman y Google Colab | [`integracion-python/`](integracion-python/) | PostgreSQL + MongoDB (Python) | En entrega (22 de noviembre de 2026) |
 
 ## Integrantes
 
@@ -23,6 +24,14 @@ avance2-mongodb/
 ├── diagrama-arquitectura-poliglota/
 ├── scripts/                    01_creacion_colecciones.js … 03_consultas.js
 └── evidencias/
+integracion-python/
+├── cuevana/                    paquete compartido: conexiones, consultas, integración entre motores
+├── api/                        API REST (FastAPI) para Postman
+├── postman/                    4 colecciones + entorno
+├── notebooks/                  4 notebooks para Google Colab
+├── scripts/                    carga de los dos motores el mismo día
+├── tests/                      pruebas automáticas (pytest)
+└── docs/casos-conflicto.md     conflictos entre motores y su solución
 ```
 
 ## Cómo ejecutar
@@ -38,3 +47,5 @@ psql -d cine_avance1 -f avance1-postgresql/scripts/05_consultas.sql
 ```
 
 **Avance 2 (MongoDB).** El mismo día que se cargan los datos del Avance 1, porque las fechas de prueba son relativas al día de carga. Los comandos están en [`avance2-mongodb/README.md`](avance2-mongodb/README.md).
+
+**Integración (API, Postman y Colab).** Instalación, credenciales, carga de los dos motores, Postman y notebooks en [`integracion-python/README.md`](integracion-python/README.md).
