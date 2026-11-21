@@ -1,0 +1,26 @@
+============================= test session starts =============================
+platform win32 -- Python 3.12.10, pytest-8.4.2, pluggy-1.7.0 -- C:\Users\seadh\proyectos\cine-entrega-final\entrega-final\script-integracion\.venv\Scripts\python.exe
+rootdir: C:\Users\seadh\proyectos\cine-entrega-final\entrega-final\script-integracion
+configfile: pytest.ini
+testpaths: tests
+plugins: anyio-4.16.0
+collecting ... collected 16 items
+
+tests/test_casos_uso.py::test_funcion_con_resenas_combina_los_dos_motores PASSED [  6%]
+tests/test_casos_uso.py::test_funcion_inexistente PASSED                 [ 12%]
+tests/test_casos_uso.py::test_pelicula_con_requisitos PASSED             [ 18%]
+tests/test_casos_uso.py::test_pelicula_inexistente PASSED                [ 25%]
+tests/test_casos_uso.py::test_ventas_vs_incidentes_cuadra_con_cada_motor PASSED [ 31%]
+tests/test_conexiones.py::test_postgres_responde PASSED                  [ 37%]
+tests/test_conexiones.py::test_mongo_responde PASSED                     [ 43%]
+tests/test_conexiones.py::test_sin_credenciales_da_error_legible PASSED  [ 50%]
+tests/test_conexiones.py::test_postgres_inalcanzable_da_error_legible PASSED [ 56%]
+tests/test_transaccion.py::test_venta_queda_en_los_dos_motores PASSED    [ 62%]
+tests/test_transaccion.py::test_rechazo_en_postgresql_no_toca_mongo PASSED [ 68%]
+tests/test_transaccion.py::test_cantidad_fuera_de_rango[0] PASSED        [ 75%]
+tests/test_transaccion.py::test_cantidad_fuera_de_rango[11] PASSED       [ 81%]
+tests/test_transaccion.py::test_falla_en_mongo_hace_rollback_en_postgresql PASSED [ 87%]
+tests/test_transaccion.py::test_falla_en_commit_borra_el_comprobante PASSED [ 93%]
+tests/test_transaccion.py::test_validador_de_la_coleccion PASSED         [100%]
+
+============================= 16 passed in 25.41s =============================

@@ -1,0 +1,77 @@
+CuevanaCinema · Integración PostgreSQL + MongoDB · 2026-11-20 17:42:14
+
+==============================================================================
+REQ. 1 · Conexión simultánea a PostgreSQL y MongoDB
+==============================================================================
+== PostgreSQL ==
+  Base:    cine_avance1
+  Versión: PostgreSQL 18.7 (84da7d8) on aarch64-unknown-linux-gnu
+  Hora:    2026-11-20 17:42:15 (America/Bogota)
+  sedes             3 filas
+  salas            10 filas
+  peliculas        12 filas
+  funciones        36 filas
+  espectadores     40 filas
+  ventas           62 filas
+== MongoDB ==
+  Base:    cine_avance2
+  Versión: 8.0.39
+  comprobantes_venta           2 documentos
+  fichas_tecnicas_peliculas    30 documentos
+  reportes_incidentes         35 documentos
+  requisitos_proyeccion       31 documentos
+  resenas_peliculas           40 documentos
+
+Resultado: los dos motores responden.
+
+==============================================================================
+REQ. 2 · Casos de uso de integración
+==============================================================================
+
+[1] Función con sus reseñas: La Casa del Río · sala 1 (2D) · CuevanaCinema Kennedy
+    PostgreSQL -> inicio 2026-11-04 19:00:00, 7 boletas, ingresos $112,000, ocupación 3.5 %
+    MongoDB    -> 3 reseñas publicadas, promedio 3.0 (2 con compra verificada)
+       * 3/5  Miguel P.: Le faltó audio
+       * 4/5  camilo.v: Actuaciones enormes
+       * 2/5  Andrea C.: Buena película, mala función
+
+[2] Película con sus requisitos técnicos: La Casa del Río (The River House, 2025)
+    PostgreSQL -> DRAMA, 115 min, +15, 2 funciones
+    MongoDB    -> géneros ['DRAMA'], audio [{'codigo': 'en', 'idioma': 'inglés', 'tipo': 'ORIGINAL'}, {'codigo': 'es', 'idioma': 'español', 'tipo': 'ORIGINAL'}], 2 funciones con requisitos
+       * función  1 2026-11-04 19:00:00 sala 1 2D [FINALIZADA] -> ['SUBTITULOS'] DCP 2K verificación APROBADA
+       * función 32 2026-11-25 18:00:00 sala 1 2D [PROGRAMADA] -> ['SUBTITULOS', 'CONVERSATORIO'] DCP 2K verificación PENDIENTE
+
+[3] Cruce de ventas con incidentes por sala  (PG: 204 boletas · Mongo: 30 incidentes)
+    sede                     sala fmt  func  boletas     ingresos  incid abiert  alta+  x100bol
+    CuevanaCinema Chapinero     1  2D     6       39      615,000      6      0      2    15.38
+    CuevanaCinema Chapinero     3  3D     4       10      206,000      5      3      3     50.0
+    CuevanaCinema Kennedy       2  3D     4       13      258,000      4      2      1    30.77
+    CuevanaCinema Chapinero     4  4D     3       60    1,580,000      3      0      2      5.0
+    CuevanaCinema Kennedy       1  2D     4       21      308,000      3      0      0    14.29
+    CuevanaCinema Usaquén       1  2D     4       20      301,000      3      0      1     15.0
+    CuevanaCinema Usaquén       2  3D     3       14      253,000      2      1      1    14.29
+    CuevanaCinema Chapinero     2  2D     4       13      198,000      2      0      0    15.38
+    CuevanaCinema Usaquén       3  2D     4       14      204,000      1      0      0     7.14
+    CuevanaCinema Kennedy       3  2D     0        0            0      1      1      1     None
+
+==============================================================================
+REQ. 3 · Transacción cruzada entre motores (venta + comprobante)
+==============================================================================
+Datos de prueba: {'id_funcion': 20, 'id_tipo_boleta': 1, 'id_espectador': 1}
+
+[A] Camino feliz: la venta se escribe en los dos motores
+    Venta 117 (CV-000117) total $32,000: 2 x GENERAL · Cumbia de Medianoche · sala 1 2D · CuevanaCinema Usaquén · 2026-11-21 17:00:00
+    PostgreSQL ventas.id_venta=117 · MongoDB comprobantes_venta._id=6b00ccce55b532b07c50a886
+    Verificación: {'en_postgresql': True, 'en_mongodb': True, 'coinciden': True} · conteos (PG, Mongo) (62, 2) -> (63, 3)
+
+[B] Rechazo en PostgreSQL (función ya finalizada): no se escribe nada en MongoDB
+    Rechazada [postgresql] sp_registrar_venta: solo se pueden vender funciones PROGRAMADAS (estado actual: FINALIZADA)
+    Conteos (PG, Mongo) (63, 3) -> (63, 3)
+
+[C] Falla en MongoDB (comprobante inválido): ROLLBACK de la venta en PostgreSQL
+    Rechazada [mongodb] No se pudo generar el comprobante (WriteError). Se hizo ROLLBACK de la venta 118 en PostgreSQL.
+    Conteos (PG, Mongo) (63, 3) -> (63, 3)
+
+Resultado: la transacción cruzada se comporta como todo o nada.
+
+TODO OK
