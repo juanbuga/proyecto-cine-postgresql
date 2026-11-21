@@ -1,0 +1,148 @@
+newman
+
+CuevanaCinema · Entrega final (integración PostgreSQL + MongoDB)
+
+□ 1. Estado de los motores
+└ Estado PostgreSQL + MongoDB
+  GET http://localhost:8000/ [200 OK, 421B, 523ms]
+  √  HTTP 200
+  √  PostgreSQL conectado (cine_avance1)
+  √  MongoDB conectado (cine_avance2)
+
+□ 2. Casos de uso (camino feliz)
+└ Caso 1 · Función 1 con sus reseñas
+  GET http://localhost:8000/funciones/1/resenas [200 OK, 1.14kB, 497ms]
+  √  HTTP 200
+  √  PostgreSQL: función, ocupación e ingresos
+  √  MongoDB: reseñas de la misma función
+  √  Combinado: ocupación + calificación promedio
+
+└ Caso 2 · Película 8 con sus requisitos técnicos
+  GET http://localhost:8000/peliculas/8/requisitos [200 OK, 1.92kB, 1056ms]
+  √  HTTP 200
+  √  PostgreSQL: película 8
+  √  MongoDB: ficha técnica
+  √  Cada función de PostgreSQL trae su verificación técnica de MongoDB
+
+└ Caso 3 · Ventas vs incidentes por sala
+  GET http://localhost:8000/salas/ventas-incidentes [200 OK, 2.45kB, 772ms]
+  √  HTTP 200
+  √  Una fila por sala
+  √  Boletas (PG) e incidentes (Mongo) en cada fila
+  √  Los totales cuadran con cada motor
+
+□ 3. Transacción cruzada (camino feliz)
+└ Buscar datos válidos para vender
+  GET http://localhost:8000/demo/datos-venta [200 OK, 179B, 314ms]
+  √  HTTP 200
+  √  Hay función, boleta y espectador
+
+└ Registrar venta (PostgreSQL + MongoDB)
+  POST http://localhost:8000/ventas [201 Created, 445B, 1229ms]
+  √  HTTP 201
+  √  PostgreSQL devolvió id_venta
+  √  MongoDB guardó el comprobante
+  √  Código del comprobante CV-######
+
+└ Verificar la venta en los dos motores
+  GET http://localhost:8000/ventas/115/verificacion [200 OK, 197B, 499ms]
+  √  HTTP 200
+  √  Está en PostgreSQL y en MongoDB y coincide
+
+□ 4. Manejo de errores
+└ 404 · Función inexistente
+  GET http://localhost:8000/funciones/999999/resenas [404 Not Found, 234B, 312ms]
+  √  HTTP 404
+  √  Formato de error común {error: {estado, motor, mensaje}}
+  √  Motor del error: postgresql
+
+└ 404 · Película inexistente
+  GET http://localhost:8000/peliculas/999999/requisitos [404 Not Found, 235B, 479ms]
+  √  HTTP 404
+  √  Formato de error común {error: {estado, motor, mensaje}}
+  √  Motor del error: postgresql
+
+└ 400 · Id no numérico
+  GET http://localhost:8000/funciones/abc/resenas [400 Bad Request, 307B, 3ms]
+  √  HTTP 400
+  √  Formato de error común {error: {estado, motor, mensaje}}
+  √  Motor del error: api
+
+└ 404 · Ruta inexistente
+  GET http://localhost:8000/no-existe [404 Not Found, 202B, 2ms]
+  √  HTTP 404
+  √  Formato de error común {error: {estado, motor, mensaje}}
+  √  Motor del error: api
+
+└ 400 · Venta sin campos obligatorios
+  POST http://localhost:8000/ventas [400 Bad Request, 359B, 2ms]
+  √  HTTP 400
+  √  Formato de error común {error: {estado, motor, mensaje}}
+  √  Motor del error: api
+  √  Lista los campos que faltan
+
+└ 400 · Canal inválido
+  POST http://localhost:8000/ventas [400 Bad Request, 268B, 3ms]
+  √  HTTP 400
+  √  Formato de error común {error: {estado, motor, mensaje}}
+  √  Motor del error: api
+
+└ 422 · Función ya finalizada (rechaza PostgreSQL)
+  POST http://localhost:8000/ventas [422 Unprocessable Entity, 356B, 987ms]
+  √  HTTP 422
+  √  Formato de error común {error: {estado, motor, mensaje}}
+  √  Motor del error: postgresql
+  √  Explica la regla
+
+└ 422 · Cantidad fuera de rango (11)
+  POST http://localhost:8000/ventas [422 Unprocessable Entity, 329B, 818ms]
+  √  HTTP 422
+  √  Formato de error común {error: {estado, motor, mensaje}}
+  √  Motor del error: postgresql
+  √  Cantidad inválida
+
+└ 422 · Taquilla sin empleado
+  POST http://localhost:8000/ventas [422 Unprocessable Entity, 334B, 815ms]
+  √  HTTP 422
+  √  Formato de error común {error: {estado, motor, mensaje}}
+  √  Motor del error: postgresql
+  √  Pide id_staff
+
+└ 422 · Falla en MongoDB → ROLLBACK en PostgreSQL
+  POST http://localhost:8000/ventas [422 Unprocessable Entity, 357B, 1046ms]
+  √  HTTP 422
+  √  Formato de error común {error: {estado, motor, mensaje}}
+  √  Motor del error: mongodb
+  √  Avisa del ROLLBACK en PostgreSQL
+
+└ 404 · La venta revertida no quedó en ningún motor
+  GET http://localhost:8000/ventas/116/verificacion [404 Not Found, 231B, 492ms]
+  √  HTTP 404
+  √  Formato de error común {error: {estado, motor, mensaje}}
+  √  Motor del error: integracion
+
+└ 404 · Venta inexistente
+  GET http://localhost:8000/ventas/999999/verificacion [404 Not Found, 235B, 495ms]
+  √  HTTP 404
+  √  Formato de error común {error: {estado, motor, mensaje}}
+  √  Motor del error: integracion
+
+┌─────────────────────────┬────────────────────┬────────────────────┐
+│                         │           executed │             failed │
+├─────────────────────────┼────────────────────┼────────────────────┤
+│              iterations │                  1 │                  0 │
+├─────────────────────────┼────────────────────┼────────────────────┤
+│                requests │                 19 │                  0 │
+├─────────────────────────┼────────────────────┼────────────────────┤
+│            test-scripts │                 19 │                  0 │
+├─────────────────────────┼────────────────────┼────────────────────┤
+│      prerequest-scripts │                  0 │                  0 │
+├─────────────────────────┼────────────────────┼────────────────────┤
+│              assertions │                 64 │                  0 │
+├─────────────────────────┴────────────────────┴────────────────────┤
+│ total run duration: 10.6s                                         │
+├───────────────────────────────────────────────────────────────────┤
+│ total data received: 7.67kB (approx)                              │
+├───────────────────────────────────────────────────────────────────┤
+│ average response time: 544ms [min: 2ms, max: 1229ms, s.d.: 375ms] │
+└───────────────────────────────────────────────────────────────────┘
