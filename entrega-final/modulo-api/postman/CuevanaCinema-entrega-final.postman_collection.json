@@ -1,0 +1,756 @@
+{
+  "info": {
+    "_postman_id": "0ca46bfc-c4c7-530b-b531-cb2210f6c726",
+    "name": "CuevanaCinema · Entrega final (integración PostgreSQL + MongoDB)",
+    "description": "Colección documentada del módulo API. Levante la API con `uvicorn main:app --port 8000` desde entrega-final/modulo-api y ejecute las carpetas en orden. La carpeta 3 registra una venta real de 1 boleta.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Estado de los motores",
+      "description": "Comprueba que la API llega a PostgreSQL y a MongoDB.",
+      "item": [
+        {
+          "name": "Estado PostgreSQL + MongoDB",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "",
+            "url": {
+              "raw": "{{base_url}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": []
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test(\"PostgreSQL conectado (cine_avance1)\", () => { pm.expect(r.postgresql.conectado).to.be.true; pm.expect(r.postgresql.base).to.eql(\"cine_avance1\"); });",
+                  "pm.test(\"MongoDB conectado (cine_avance2)\", () => { pm.expect(r.mongodb.conectado).to.be.true; pm.expect(r.mongodb.base).to.eql(\"cine_avance2\"); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Casos de uso (camino feliz)",
+      "description": "Requerimiento 2: consultas que combinan los dos motores.",
+      "item": [
+        {
+          "name": "Caso 1 · Función 1 con sus reseñas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "",
+            "url": {
+              "raw": "{{base_url}}/funciones/1/resenas",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "funciones",
+                "1",
+                "resenas"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test(\"PostgreSQL: función, ocupación e ingresos\", () => { pm.expect(r.postgresql.id_funcion).to.eql(1); pm.expect(r.postgresql).to.have.property(\"ocupacion_pct\"); pm.expect(r.postgresql).to.have.property(\"ingresos\"); });",
+                  "pm.test(\"MongoDB: reseñas de la misma función\", () => { pm.expect(r.mongodb.resenas).to.be.an(\"array\"); pm.expect(r.mongodb.resenas_publicadas).to.eql(r.mongodb.resenas.length); });",
+                  "pm.test(\"Combinado: ocupación + calificación promedio\", () => { pm.expect(r.combinado).to.have.property(\"ocupacion_pct\"); pm.expect(r.combinado).to.have.property(\"calificacion_promedio\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Caso 2 · Película 8 con sus requisitos técnicos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "",
+            "url": {
+              "raw": "{{base_url}}/peliculas/8/requisitos",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "peliculas",
+                "8",
+                "requisitos"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test(\"PostgreSQL: película 8\", () => pm.expect(r.postgresql.pelicula.id_pelicula).to.eql(8));",
+                  "pm.test(\"MongoDB: ficha técnica\", () => pm.expect(r.mongodb.ficha_tecnica).to.be.an(\"object\"));",
+                  "pm.test(\"Cada función de PostgreSQL trae su verificación técnica de MongoDB\", () => {",
+                  "  pm.expect(r.combinado.funciones.length).to.eql(r.postgresql.funciones);",
+                  "  r.combinado.funciones.forEach(f => pm.expect(f).to.have.property(\"verificacion\"));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Caso 3 · Ventas vs incidentes por sala",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "",
+            "url": {
+              "raw": "{{base_url}}/salas/ventas-incidentes",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "salas",
+                "ventas-incidentes"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test(\"Una fila por sala\", () => pm.expect(r.combinado.length).to.eql(r.postgresql.salas));",
+                  "pm.test(\"Boletas (PG) e incidentes (Mongo) en cada fila\", () => r.combinado.forEach(f => { pm.expect(f).to.have.property(\"boletas\"); pm.expect(f).to.have.property(\"incidentes\"); }));",
+                  "pm.test(\"Los totales cuadran con cada motor\", () => {",
+                  "  pm.expect(r.combinado.reduce((a, f) => a + f.boletas, 0)).to.eql(r.postgresql.boletas);",
+                  "  pm.expect(r.combinado.reduce((a, f) => a + f.incidentes, 0)).to.eql(r.mongodb.incidentes_con_sala);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Transacción cruzada (camino feliz)",
+      "description": "Requerimiento 3: la venta se registra en PostgreSQL y su comprobante en MongoDB. Registra UNA venta real de 1 boleta.",
+      "item": [
+        {
+          "name": "Buscar datos válidos para vender",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "",
+            "url": {
+              "raw": "{{base_url}}/demo/datos-venta",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "demo",
+                "datos-venta"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json();",
+                  "[\"id_funcion\", \"id_espectador\", \"id_tipo_boleta\"].forEach(k => pm.environment.set(k, d[k]));",
+                  "pm.test(\"Hay función, boleta y espectador\", () => { pm.expect(d.id_funcion).to.be.a(\"number\"); pm.expect(d.id_espectador).to.be.a(\"number\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Registrar venta (PostgreSQL + MongoDB)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "",
+            "url": {
+              "raw": "{{base_url}}/ventas",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "ventas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_funcion\": {{id_funcion}},\n  \"id_espectador\": {{id_espectador}},\n  \"id_tipo_boleta\": {{id_tipo_boleta}},\n  \"cantidad\": 1,\n  \"canal\": \"WEB\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "const r = pm.response.json();",
+                  "pm.environment.set(\"id_venta\", r.id_venta);",
+                  "pm.test(\"PostgreSQL devolvió id_venta\", () => pm.expect(r.postgresql.id_venta).to.eql(r.id_venta));",
+                  "pm.test(\"MongoDB guardó el comprobante\", () => { pm.expect(r.mongodb.coleccion).to.eql(\"comprobantes_venta\"); pm.expect(r.mongodb._id).to.have.lengthOf(24); });",
+                  "pm.test(\"Código del comprobante CV-######\", () => pm.expect(r.codigo).to.match(/^CV-\\d{6}$/));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verificar la venta en los dos motores",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "",
+            "url": {
+              "raw": "{{base_url}}/ventas/{{id_venta}}/verificacion",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "ventas",
+                "{{id_venta}}",
+                "verificacion"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test(\"Está en PostgreSQL y en MongoDB y coincide\", () => { pm.expect(r.en_postgresql).to.be.true; pm.expect(r.en_mongodb).to.be.true; pm.expect(r.coinciden).to.be.true; });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. Manejo de errores",
+      "description": "Requerimiento 4: no solo camino feliz. Todos los errores usan el mismo JSON {error: {estado, motor, mensaje}}. El 503 (motor caído) se prueba a mano: ver CHECKLIST.",
+      "item": [
+        {
+          "name": "404 · Función inexistente",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "",
+            "url": {
+              "raw": "{{base_url}}/funciones/999999/resenas",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "funciones",
+                "999999",
+                "resenas"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Formato de error común {error: {estado, motor, mensaje}}\", () => {",
+                  "  const e = pm.response.json().error;",
+                  "  pm.expect(e.estado).to.eql(404);",
+                  "  pm.expect(e.mensaje).to.be.a(\"string\").and.not.empty;",
+                  "});",
+                  "pm.test(\"Motor del error: postgresql\", () => pm.expect(pm.response.json().error.motor).to.eql(\"postgresql\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "404 · Película inexistente",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "",
+            "url": {
+              "raw": "{{base_url}}/peliculas/999999/requisitos",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "peliculas",
+                "999999",
+                "requisitos"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Formato de error común {error: {estado, motor, mensaje}}\", () => {",
+                  "  const e = pm.response.json().error;",
+                  "  pm.expect(e.estado).to.eql(404);",
+                  "  pm.expect(e.mensaje).to.be.a(\"string\").and.not.empty;",
+                  "});",
+                  "pm.test(\"Motor del error: postgresql\", () => pm.expect(pm.response.json().error.motor).to.eql(\"postgresql\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "400 · Id no numérico",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "",
+            "url": {
+              "raw": "{{base_url}}/funciones/abc/resenas",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "funciones",
+                "abc",
+                "resenas"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Formato de error común {error: {estado, motor, mensaje}}\", () => {",
+                  "  const e = pm.response.json().error;",
+                  "  pm.expect(e.estado).to.eql(400);",
+                  "  pm.expect(e.mensaje).to.be.a(\"string\").and.not.empty;",
+                  "});",
+                  "pm.test(\"Motor del error: api\", () => pm.expect(pm.response.json().error.motor).to.eql(\"api\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "404 · Ruta inexistente",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "",
+            "url": {
+              "raw": "{{base_url}}/no-existe",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "no-existe"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Formato de error común {error: {estado, motor, mensaje}}\", () => {",
+                  "  const e = pm.response.json().error;",
+                  "  pm.expect(e.estado).to.eql(404);",
+                  "  pm.expect(e.mensaje).to.be.a(\"string\").and.not.empty;",
+                  "});",
+                  "pm.test(\"Motor del error: api\", () => pm.expect(pm.response.json().error.motor).to.eql(\"api\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "400 · Venta sin campos obligatorios",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "",
+            "url": {
+              "raw": "{{base_url}}/ventas",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "ventas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Formato de error común {error: {estado, motor, mensaje}}\", () => {",
+                  "  const e = pm.response.json().error;",
+                  "  pm.expect(e.estado).to.eql(400);",
+                  "  pm.expect(e.mensaje).to.be.a(\"string\").and.not.empty;",
+                  "});",
+                  "pm.test(\"Motor del error: api\", () => pm.expect(pm.response.json().error.motor).to.eql(\"api\"));",
+                  "pm.test(\"Lista los campos que faltan\", () => pm.expect(pm.response.json().error.detalle.join(\" \")).to.include(\"id_funcion\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "400 · Canal inválido",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "",
+            "url": {
+              "raw": "{{base_url}}/ventas",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "ventas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_funcion\": {{id_funcion}},\n  \"id_espectador\": {{id_espectador}},\n  \"id_tipo_boleta\": {{id_tipo_boleta}},\n  \"cantidad\": 1,\n  \"canal\": \"CORREO\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Formato de error común {error: {estado, motor, mensaje}}\", () => {",
+                  "  const e = pm.response.json().error;",
+                  "  pm.expect(e.estado).to.eql(400);",
+                  "  pm.expect(e.mensaje).to.be.a(\"string\").and.not.empty;",
+                  "});",
+                  "pm.test(\"Motor del error: api\", () => pm.expect(pm.response.json().error.motor).to.eql(\"api\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "422 · Función ya finalizada (rechaza PostgreSQL)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "",
+            "url": {
+              "raw": "{{base_url}}/ventas",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "ventas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_funcion\": 1,\n  \"id_espectador\": {{id_espectador}},\n  \"id_tipo_boleta\": 1,\n  \"cantidad\": 1,\n  \"canal\": \"WEB\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Formato de error común {error: {estado, motor, mensaje}}\", () => {",
+                  "  const e = pm.response.json().error;",
+                  "  pm.expect(e.estado).to.eql(422);",
+                  "  pm.expect(e.mensaje).to.be.a(\"string\").and.not.empty;",
+                  "});",
+                  "pm.test(\"Motor del error: postgresql\", () => pm.expect(pm.response.json().error.motor).to.eql(\"postgresql\"));",
+                  "pm.test(\"Explica la regla\", () => pm.expect(pm.response.json().error.mensaje).to.include(\"PROGRAMADAS\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "422 · Cantidad fuera de rango (11)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "",
+            "url": {
+              "raw": "{{base_url}}/ventas",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "ventas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_funcion\": {{id_funcion}},\n  \"id_espectador\": {{id_espectador}},\n  \"id_tipo_boleta\": {{id_tipo_boleta}},\n  \"cantidad\": 11,\n  \"canal\": \"WEB\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Formato de error común {error: {estado, motor, mensaje}}\", () => {",
+                  "  const e = pm.response.json().error;",
+                  "  pm.expect(e.estado).to.eql(422);",
+                  "  pm.expect(e.mensaje).to.be.a(\"string\").and.not.empty;",
+                  "});",
+                  "pm.test(\"Motor del error: postgresql\", () => pm.expect(pm.response.json().error.motor).to.eql(\"postgresql\"));",
+                  "pm.test(\"Cantidad inválida\", () => pm.expect(pm.response.json().error.mensaje).to.include(\"cantidad\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "422 · Taquilla sin empleado",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "",
+            "url": {
+              "raw": "{{base_url}}/ventas",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "ventas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_funcion\": {{id_funcion}},\n  \"id_espectador\": {{id_espectador}},\n  \"id_tipo_boleta\": {{id_tipo_boleta}},\n  \"cantidad\": 1,\n  \"canal\": \"TAQUILLA\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Formato de error común {error: {estado, motor, mensaje}}\", () => {",
+                  "  const e = pm.response.json().error;",
+                  "  pm.expect(e.estado).to.eql(422);",
+                  "  pm.expect(e.mensaje).to.be.a(\"string\").and.not.empty;",
+                  "});",
+                  "pm.test(\"Motor del error: postgresql\", () => pm.expect(pm.response.json().error.motor).to.eql(\"postgresql\"));",
+                  "pm.test(\"Pide id_staff\", () => pm.expect(pm.response.json().error.mensaje).to.include(\"id_staff\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "422 · Falla en MongoDB → ROLLBACK en PostgreSQL",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "description": "",
+            "url": {
+              "raw": "{{base_url}}/ventas",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "ventas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_funcion\": {{id_funcion}},\n  \"id_espectador\": {{id_espectador}},\n  \"id_tipo_boleta\": {{id_tipo_boleta}},\n  \"cantidad\": 1,\n  \"canal\": \"WEB\",\n  \"simular_fallo_mongo\": true\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Formato de error común {error: {estado, motor, mensaje}}\", () => {",
+                  "  const e = pm.response.json().error;",
+                  "  pm.expect(e.estado).to.eql(422);",
+                  "  pm.expect(e.mensaje).to.be.a(\"string\").and.not.empty;",
+                  "});",
+                  "pm.test(\"Motor del error: mongodb\", () => pm.expect(pm.response.json().error.motor).to.eql(\"mongodb\"));",
+                  "",
+                  "const msg = pm.response.json().error.mensaje;",
+                  "pm.test(\"Avisa del ROLLBACK en PostgreSQL\", () => pm.expect(msg).to.include(\"ROLLBACK\"));",
+                  "pm.environment.set(\"id_venta_revertida\", msg.match(/venta (\\d+)/)[1]);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "404 · La venta revertida no quedó en ningún motor",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "",
+            "url": {
+              "raw": "{{base_url}}/ventas/{{id_venta_revertida}}/verificacion",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "ventas",
+                "{{id_venta_revertida}}",
+                "verificacion"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Formato de error común {error: {estado, motor, mensaje}}\", () => {",
+                  "  const e = pm.response.json().error;",
+                  "  pm.expect(e.estado).to.eql(404);",
+                  "  pm.expect(e.mensaje).to.be.a(\"string\").and.not.empty;",
+                  "});",
+                  "pm.test(\"Motor del error: integracion\", () => pm.expect(pm.response.json().error.motor).to.eql(\"integracion\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "404 · Venta inexistente",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "",
+            "url": {
+              "raw": "{{base_url}}/ventas/999999/verificacion",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "ventas",
+                "999999",
+                "verificacion"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Formato de error común {error: {estado, motor, mensaje}}\", () => {",
+                  "  const e = pm.response.json().error;",
+                  "  pm.expect(e.estado).to.eql(404);",
+                  "  pm.expect(e.mensaje).to.be.a(\"string\").and.not.empty;",
+                  "});",
+                  "pm.test(\"Motor del error: integracion\", () => pm.expect(pm.response.json().error.motor).to.eql(\"integracion\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
